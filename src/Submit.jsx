@@ -1,14 +1,20 @@
 import { useEffect, useState } from 'react'
 import { casSequences } from './api'
+import ChapterPicker from './ChapterPicker'
 import MathText, { hasMath } from './MathText'
 import { Button, Label, Panel } from './ui'
 
 const field = 'w-full rounded-2xl border border-line bg-panel px-3 py-2 text-ink outline-none placeholder:text-muted focus:border-accent'
 
-// The public form: a sequence is a subject, a topic, a title, and its steps IN ORDER. Reviewers approve it before
-// it's used in a game.
+// The public form: a sequence is the chapters it fits (or, for subjects with no chapters yet, a typed subject), a
+// topic, a title, and its steps IN ORDER. Reviewers approve it before it's used in a game.
+const OTHER = '__other__'
 export default function Submit() {
   const [places, setPlaces] = useState(null)
+  const [courses, setCourses] = useState([])
+  const [allTopics, setAllTopics] = useState([])
+  const [course, setCourse] = useState('')
+  const [topicIds, setTopicIds] = useState([])
   const [limits, setLimits] = useState({ min: 3, max: 12 })
   const [subject, setSubject] = useState('')
   const [topic, setTopic] = useState('')
@@ -21,10 +27,12 @@ export default function Submit() {
   const [done, setDone] = useState(false)
 
   useEffect(() => {
-    casSequences({ action: 'places' }).then((d) => { setPlaces(d.subjects); setLimits({ min: d.min_steps, max: d.max_steps }) }).catch((e) => setError(e.message))
+    casSequences({ action: 'places' }).then((d) => { setPlaces(d.subjects); setCourses(d.courses ?? []); setAllTopics(d.topics ?? []); setLimits({ min: d.min_steps, max: d.max_steps }) }).catch((e) => setError(e.message))
   }, [])
 
-  const topicsFor = places?.find((p) => p.subject.toLowerCase() === subject.trim().toLowerCase())?.topics ?? []
+  const other = course === OTHER
+  const topicsFor = other ? places?.find((p) => p.subject.toLowerCase() === subject.trim().toLowerCase())?.topics ?? [] : allTopics
+  const placed = other ? subject.trim() : topicIds.length > 0
   const filled = steps.map((s) => s.trim()).filter(Boolean)
   const move = (i, d) => {
     const j = i + d
@@ -39,7 +47,7 @@ export default function Submit() {
     setBusy(true)
     setError('')
     try {
-      await casSequences({ action: 'submit', subject, topic, title, steps: filled, submitter_name: name, submitter_note: note })
+      await casSequences({ action: 'submit', subject: other ? subject : '', topic_ids: other ? [] : topicIds, topic, title, steps: filled, submitter_name: name, submitter_note: note })
       setDone(true)
     } catch (err) {
       setError(err.message)
@@ -75,19 +83,34 @@ export default function Submit() {
         </header>
 
         <Panel className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <Label>Course</Label>
+            <select className={`${field} mt-1`} value={course} onChange={(e) => { setCourse(e.target.value); setTopicIds([]) }} required>
+              <option value="">Choose…</option>
+              {courses.map((c) => <option key={c.course_name} value={c.course_name}>{c.course_name}</option>)}
+              <option value={OTHER}>Another subject (no chapters yet, like Chemistry)</option>
+            </select>
+          </div>
+          {course && !other && (
+            <div>
+              <Label>Chapters it fits</Label>
+              <p className="mt-1 text-xs text-muted">Tick every professor&apos;s chapter that covers this process. Leaders only see it when they play one of these chapters.</p>
+              <div className="mt-2"><ChapterPicker courses={courses.filter((c) => c.course_name === course)} value={topicIds} onChange={setTopicIds} /></div>
+            </div>
+          )}
+          {other && (
             <div>
               <Label>Subject</Label>
-              <input className={`${field} mt-1`} list="subjects" maxLength={60} placeholder="Biology" value={subject} onChange={(e) => setSubject(e.target.value)} required />
+              <input className={`${field} mt-1`} list="subjects" maxLength={60} placeholder="Chemistry" value={subject} onChange={(e) => setSubject(e.target.value)} required />
               <datalist id="subjects">{(places ?? []).map((p) => <option key={p.subject} value={p.subject} />)}</datalist>
             </div>
-            <div>
-              <Label>Topic</Label>
-              <input className={`${field} mt-1`} list="topics" maxLength={80} placeholder="Cell division" value={topic} onChange={(e) => setTopic(e.target.value)} required />
-              <datalist id="topics">{topicsFor.map((t) => <option key={t} value={t} />)}</datalist>
-            </div>
+          )}
+          <div>
+            <Label>Topic</Label>
+            <input className={`${field} mt-1`} list="topics" maxLength={80} placeholder="Cell division" value={topic} onChange={(e) => setTopic(e.target.value)} required />
+            <datalist id="topics">{topicsFor.map((t) => <option key={t} value={t} />)}</datalist>
+            <p className="mt-1 text-xs text-muted">A short label shown on the board. Pick one from the list or type a new one.</p>
           </div>
-          <p className="text-xs text-muted">Pick an existing subject and topic from the list, or type a new one.</p>
           <div>
             <Label>Title</Label>
             <input className={`${field} mt-1`} maxLength={120} placeholder="Phases of mitosis" value={title} onChange={(e) => setTitle(e.target.value)} required />
@@ -127,7 +150,7 @@ export default function Submit() {
         <Panel className="space-y-3">
           <input className={field} maxLength={80} placeholder="Your name (so reviewers can follow up)" value={name} onChange={(e) => setName(e.target.value)} required />
           <textarea className={field} rows={2} maxLength={500} placeholder="Note for the reviewer (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
-          <Button className="w-full" disabled={busy || filled.length < limits.min || !subject.trim() || !topic.trim() || !title.trim() || !name.trim()}>
+          <Button className="w-full" disabled={busy || filled.length < limits.min || !placed || !topic.trim() || !title.trim() || !name.trim()}>
             {busy ? 'Sending…' : 'Send for review'}
           </Button>
           {error && <p className="font-bold text-bad">{error}</p>}

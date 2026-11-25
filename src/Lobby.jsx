@@ -8,20 +8,24 @@ import { Button, Label, Panel } from './ui'
 const choice = (on) =>
   `rounded-2xl border px-3 py-2 text-left text-sm font-semibold transition ${on ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-panel hover:bg-hover'}`
 
-// Leader lobby: create the game -> teams -> finalize -> subject and topics -> start.
+// Leader lobby: create the game -> teams -> finalize -> course, professor and chapters (or, for subjects with no
+// chapters yet, a subject and topics) -> start.
 // Students join from their phones; the leader puts them on teams. A team of one works.
 export default function Lobby({ onStart, onOpenBoard, hasGame, resume, onCloseGame }) {
   const [session, setSession] = useState(resume?.session ?? null)
   const [teamNames, setTeamNames] = useState(resume?.teams?.length ? resume.teams : ['Team 1', 'Team 2'])
   const [finalized, setFinalized] = useState(Boolean(resume?.finalized))
   const [catalog, setCatalog] = useState(null)
+  const [course, setCourse] = useState('')
+  const [professor, setProfessor] = useState('')
+  const [topicIds, setTopicIds] = useState([])
   const [subject, setSubject] = useState('')
   const [topics, setTopics] = useState([])
   const [players, setPlayers] = useState([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
-  useEffect(() => { casGame({ action: 'catalog' }).then((d) => setCatalog(d.subjects)).catch((e) => setError(e.message)) }, [])
+  useEffect(() => { casGame({ action: 'catalog' }).then(setCatalog).catch((e) => setError(e.message)) }, [])
   useEffect(() => {
     if (!session) return undefined
     const load = () => casGame({ action: 'list_players', game_id: session.gameId, host_token: session.hostToken }).then((d) => setPlayers(d.players)).catch(() => {})
@@ -39,8 +43,22 @@ export default function Lobby({ onStart, onOpenBoard, hasGame, resume, onCloseGa
   const waiting = players.filter((p) => p.approval_status === 'pending')
   const sizes = teamNames.map((_, i) => players.filter((p) => p.approval_status === 'approved' && p.team_index === i).length)
   const emptyTeams = teamNames.map((_, i) => i).filter((i) => sizes[i] === 0)
-  const subjectTopics = catalog?.find((s) => s.subject === subject)?.topics ?? []
-  const sequenceCount = subjectTopics.filter((t) => topics.includes(t.topic)).reduce((n, t) => n + t.count, 0)
+  const subjectTopics = catalog?.subjects.find((s) => s.subject === subject)?.topics ?? []
+  const professors = catalog?.courses.find((c) => c.course_name === course)?.professors ?? []
+  const chapters = professors.find((p) => p.professor_name === professor)?.chapters ?? []
+  // One sequence can sit under several chosen chapters, so this is an upper bound ("up to")
+  const sequenceCount = course
+    ? chapters.filter((ch) => topicIds.includes(ch.id)).reduce((n, ch) => n + ch.count, 0)
+    : subjectTopics.filter((t) => topics.includes(t.topic)).reduce((n, t) => n + t.count, 0)
+  const picked = course ? topicIds.length : topics.length
+  const nothing = catalog && catalog.courses.length === 0 && catalog.subjects.length === 0
+  const pickProfessor = (p) => { setProfessor(p.professor_name); setTopicIds(p.chapters.map((ch) => ch.id)) }
+  const pickCourse = (c) => {
+    setCourse(c.course_name); setSubject(''); setTopics([])
+    if (c.professors.length === 1) pickProfessor(c.professors[0])
+    else { setProfessor(''); setTopicIds([]) }
+  }
+  const pickSubject = (s) => { setSubject(s.subject); setTopics(s.topics.map((t) => t.topic)); setCourse(''); setProfessor(''); setTopicIds([]) }
 
   const create = () => run(async () => {
     const d = await casGame({ action: 'create_game' })
@@ -51,7 +69,7 @@ export default function Lobby({ onStart, onOpenBoard, hasGame, resume, onCloseGa
   const finalize = () => run(async () => { await call({ action: 'set_teams', team_names: teamNames.map((_, i) => teamLabel(i)) }); setFinalized(true) })
   const studentAction = (payload) => run(async () => { await call(payload); setPlayers((await call({ action: 'list_players' })).players) })
   const start = () => run(async () => {
-    await call({ action: 'start_game', team_names: teamNames.map((_, i) => teamLabel(i)), subject, topics })
+    await call({ action: 'start_game', team_names: teamNames.map((_, i) => teamLabel(i)), ...(course ? { course_name: course, professor_name: professor, topic_ids: topicIds } : { subject, topics }) })
     onStart(session)
   })
 
@@ -124,34 +142,49 @@ export default function Lobby({ onStart, onOpenBoard, hasGame, resume, onCloseGa
           {finalized && (
             <div className="mt-6 border-t border-line pt-4">
               {!catalog && <p className="text-muted">Loading sequences…</p>}
-              {catalog?.length === 0 && <p className="text-muted">No approved sequences yet. Add some on the Submit page.</p>}
-              {catalog?.length > 0 && (
+              {nothing && <p className="text-muted">No approved sequences yet. Add some on the Submit page.</p>}
+              {catalog && !nothing && (
                 <>
-                  <Label>1. Subject</Label>
+                  <Label>1. Course</Label>
                   <div className="mt-2 grid grid-cols-2 gap-2">
-                    {catalog.map((s) => (
-                      <button key={s.subject} type="button" className={choice(subject === s.subject)} onClick={() => { setSubject(s.subject); setTopics(s.topics.map((t) => t.topic)) }}>{s.subject}</button>
+                    {catalog.courses.map((c) => (
+                      <button key={c.course_name} type="button" className={choice(course === c.course_name)} onClick={() => pickCourse(c)}>{c.course_name}</button>
+                    ))}
+                    {catalog.subjects.map((s) => (
+                      <button key={s.subject} type="button" className={choice(subject === s.subject)} onClick={() => pickSubject(s)}>
+                        {s.subject}{catalog.courses.some((c) => c.course_name === s.subject) && <span className="block text-xs font-normal text-muted">not filed by chapter yet</span>}
+                      </button>
                     ))}
                   </div>
                 </>
               )}
-              {subject && (
+              {course && professors.length > 1 && (
+                <>
+                  <Label className="mt-4">2. Professor</Label>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    {professors.map((p) => <button key={p.professor_name} type="button" className={choice(professor === p.professor_name)} onClick={() => pickProfessor(p)}>{p.professor_name}</button>)}
+                  </div>
+                </>
+              )}
+              {((course && professor) || subject) && (
                 <>
                   <div className="mt-4 flex items-baseline justify-between">
-                    <Label>2. Topics</Label>
+                    <Label>{course ? (professors.length > 1 ? '3. Chapters' : '2. Chapters') : '2. Topics'}</Label>
                     <span className="flex gap-3 text-xs font-bold">
-                      <button type="button" className="text-info" onClick={() => setTopics(subjectTopics.map((t) => t.topic))}>All</button>
-                      <button type="button" className="text-info" onClick={() => setTopics([])}>None</button>
+                      <button type="button" className="text-info" onClick={() => (course ? setTopicIds(chapters.map((ch) => ch.id)) : setTopics(subjectTopics.map((t) => t.topic)))}>All</button>
+                      <button type="button" className="text-info" onClick={() => (course ? setTopicIds([]) : setTopics([]))}>None</button>
                     </span>
                   </div>
                   <ul className="mt-2 space-y-1.5">
-                    {subjectTopics.map((t) => {
-                      const on = topics.includes(t.topic)
+                    {(course ? chapters.map((ch) => ({ key: ch.id, name: ch.topic_name, count: ch.count })) : subjectTopics.map((t) => ({ key: t.topic, name: t.topic, count: t.count }))).map((t) => {
+                      const list = course ? topicIds : topics
+                      const set = course ? setTopicIds : setTopics
+                      const on = list.includes(t.key)
                       return (
-                        <li key={t.topic}>
+                        <li key={t.key}>
                           <label className={`flex cursor-pointer items-center gap-3 rounded-2xl border px-3 py-2 text-sm ${on ? 'border-accent bg-accent-soft' : 'border-line bg-panel hover:bg-hover'}`}>
-                            <input type="checkbox" checked={on} className="h-4 w-4 accent-teal-400" onChange={() => setTopics(on ? topics.filter((x) => x !== t.topic) : [...topics, t.topic])} />
-                            <span className="flex-1 font-semibold">{t.topic}</span>
+                            <input type="checkbox" checked={on} className="h-4 w-4 accent-teal-400" onChange={() => set(on ? list.filter((x) => x !== t.key) : [...list, t.key])} />
+                            <span className="flex-1 font-semibold">{t.name}</span>
                             <span className="text-xs text-muted">{t.count} sequence{t.count === 1 ? '' : 's'}</span>
                           </label>
                         </li>
@@ -159,8 +192,8 @@ export default function Lobby({ onStart, onOpenBoard, hasGame, resume, onCloseGa
                     })}
                   </ul>
                   {emptyTeams.length > 0 && <p className="mt-3 text-sm font-bold text-bad">Every team needs at least one student. Still empty: {emptyTeams.map(teamLabel).join(', ')}.</p>}
-                  <Button className="mt-4 w-full" disabled={busy || topics.length === 0 || emptyTeams.length > 0} onClick={start}>
-                    {busy ? 'Starting…' : topics.length === 0 ? 'Pick at least one topic' : `🌊 Start (${sequenceCount} sequence${sequenceCount === 1 ? '' : 's'})`}
+                  <Button className="mt-4 w-full" disabled={busy || picked === 0 || emptyTeams.length > 0} onClick={start}>
+                    {busy ? 'Starting…' : picked === 0 ? `Pick at least one ${course ? 'chapter' : 'topic'}` : `🌊 Start (${course && topicIds.length > 1 ? 'up to ' : ''}${sequenceCount} sequence${sequenceCount === 1 ? '' : 's'})`}
                   </Button>
                 </>
               )}

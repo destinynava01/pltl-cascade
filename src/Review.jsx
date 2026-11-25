@@ -5,6 +5,8 @@ import { supabase } from './supabase'
 import { useSession } from './useSession'
 import { Button, Label } from './ui'
 import MathText from './MathText'
+import ChapterPicker from './ChapterPicker'
+import { chapterLabels } from './chapters'
 
 const field = 'w-full rounded-xl border border-line bg-panel px-3 py-2 text-sm text-ink outline-none focus:border-accent'
 const TABS = [{ id: 'pending', label: 'Waiting' }, { id: 'approved', label: 'Approved' }, { id: 'rejected', label: 'Rejected' }]
@@ -85,17 +87,18 @@ function Reviewer() {
         {!data && <p className="mt-6 text-muted">Loading…</p>}
         {data && list.length === 0 && <p className="mt-6 text-muted">Nothing here.</p>}
         <ul className="mt-4 space-y-3">
-          {list.map((s) => <SequenceCard key={s.id} s={s} picked={picked.includes(s.id)} onPick={() => setPicked((x) => (x.includes(s.id) ? x.filter((y) => y !== s.id) : [...x, s.id]))} tab={tab} act={act} />)}
+          {list.map((s) => <SequenceCard key={s.id} s={s} courses={data.courses ?? []} picked={picked.includes(s.id)} onPick={() => setPicked((x) => (x.includes(s.id) ? x.filter((y) => y !== s.id) : [...x, s.id]))} tab={tab} act={act} />)}
         </ul>
       </div>
     </main>
   )
 }
 
-function SequenceCard({ s, picked, onPick, tab, act }) {
+function SequenceCard({ s, courses, picked, onPick, tab, act }) {
+  const labels = chapterLabels(courses, s.topic_ids)
   const [draft, setDraft] = useState(null)
   const save = async () => {
-    const ok = await act({ action: 'save', id: s.id, subject: draft.subject, topic: draft.topic, title: draft.title, steps: draft.steps.map((x) => x.trim()).filter(Boolean) }, 'Saved.')
+    const ok = await act({ action: 'save', id: s.id, topic_ids: draft.topic_ids, subject: draft.subject, topic: draft.topic, title: draft.title, steps: draft.steps.map((x) => x.trim()).filter(Boolean) }, 'Saved.')
     if (ok) setDraft(null)
   }
   if (draft) {
@@ -105,6 +108,11 @@ function SequenceCard({ s, picked, onPick, tab, act }) {
           <input className={field} value={draft.subject} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} aria-label="Subject" />
           <input className={field} value={draft.topic} onChange={(e) => setDraft({ ...draft, topic: e.target.value })} aria-label="Topic" />
           <input className={field} value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} aria-label="Title" />
+        </div>
+        <div className="mt-3">
+          <Label>Chapters</Label>
+          <p className="mb-2 text-xs text-muted">With no chapters ticked, it&apos;s played by its subject and topic (for subjects like Chemistry that have no chapters yet).</p>
+          <ChapterPicker courses={courses} value={draft.topic_ids} onChange={(ids) => setDraft({ ...draft, topic_ids: ids })} />
         </div>
         <ol className="mt-3 space-y-1.5">
           {draft.steps.map((step, i) => (
@@ -131,13 +139,16 @@ function SequenceCard({ s, picked, onPick, tab, act }) {
         <div className="min-w-0 flex-1">
           <Label>{s.subject} · {s.topic}</Label>
           <p className="font-display text-xl font-bold">{s.title}</p>
+          {labels.length > 0
+            ? <p className="mt-1 text-xs text-muted">📖 {labels.join(' · ')}</p>
+            : <p className="mt-1 text-xs font-bold text-gold">Not filed under any chapter: played by subject and topic. Edit to add chapters.</p>}
           <ol className="mt-2 list-decimal space-y-0.5 pl-5 text-sm">{s.steps.map((step) => <li key={step}><MathText text={step} /></li>)}</ol>
           <p className="mt-2 text-xs text-muted">From {s.submitter_name || 'unknown'}{s.submitter_note ? ` · "${s.submitter_note}"` : ''}{s.reviewed_by ? ` · ${s.status} by ${s.reviewed_by}` : ''}</p>
           <div className="mt-3 flex flex-wrap gap-2 text-sm font-bold">
             {s.status !== 'approved' && <button onClick={() => act({ action: 'set_status', ids: [s.id], status: 'approved' })} className="rounded-lg bg-accent px-3 py-1 text-on-accent">✓ Approve</button>}
             {s.status !== 'rejected' && <button onClick={() => act({ action: 'set_status', ids: [s.id], status: 'rejected' })} className="rounded-lg border border-bad px-3 py-1 text-bad">✕ Reject</button>}
             {s.status !== 'pending' && <button onClick={() => act({ action: 'set_status', ids: [s.id], status: 'pending' })} className="rounded-lg border border-line px-3 py-1">Back to waiting</button>}
-            <button onClick={() => setDraft({ subject: s.subject, topic: s.topic, title: s.title, steps: [...s.steps] })} className="rounded-lg border border-info px-3 py-1 text-info">✎ Edit</button>
+            <button onClick={() => setDraft({ subject: s.subject, topic: s.topic, title: s.title, steps: [...s.steps], topic_ids: (s.topic_ids ?? []).filter((id) => courses.some((c) => c.professors.some((p) => p.chapters.some((ch) => ch.id === id)))) })} className="rounded-lg border border-info px-3 py-1 text-info">✎ Edit</button>
             {s.status === 'rejected' && <button onClick={() => window.confirm(`Delete "${s.title}" for good?`) && act({ action: 'delete', id: s.id })} className="px-2 py-1 text-bad">Delete</button>}
           </div>
         </div>
