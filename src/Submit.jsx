@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { casSequences } from './api'
+import MathText, { hasMath } from './MathText'
 import { Button, Label, Panel } from './ui'
 
 const field = 'w-full rounded-2xl border border-line bg-panel px-3 py-2 text-ink outline-none placeholder:text-muted focus:border-accent'
@@ -112,6 +113,13 @@ export default function Submit() {
               </li>
             ))}
           </ol>
+          {steps.some(hasMath) && (
+            <ol className="mt-3 list-decimal space-y-1 rounded-2xl border border-dashed border-line p-3 pl-8 text-sm">
+              <p className="-ml-5 mb-1 text-xs font-bold uppercase tracking-wider text-muted">Preview</p>
+              {steps.filter((x) => x.trim()).map((x, i) => <li key={i}><MathText text={x} /></li>)}
+            </ol>
+          )}
+          <p className="mt-2 text-xs text-muted">For math, put it between dollar signs: $x^2$, $\frac{1}{2}$, $\sin^2\theta$.</p>
           {steps.length < limits.max && <button type="button" onClick={() => setSteps([...steps, ''])} className="mt-3 w-full rounded-2xl border border-dashed border-line py-2 font-bold text-info hover:bg-hover">+ Add a step</button>}
           <p className="mt-2 text-xs text-muted">Tip: add a short description to each step (&ldquo;Metaphase: chromosomes line up&rdquo;) so students learn what happens, not just the names.</p>
         </Panel>

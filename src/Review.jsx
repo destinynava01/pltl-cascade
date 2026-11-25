@@ -4,6 +4,7 @@ import { SignIn, SignInCard } from './SignIn'
 import { supabase } from './supabase'
 import { useSession } from './useSession'
 import { Button, Label } from './ui'
+import MathText from './MathText'
 
 const field = 'w-full rounded-xl border border-line bg-panel px-3 py-2 text-sm text-ink outline-none focus:border-accent'
 const TABS = [{ id: 'pending', label: 'Waiting' }, { id: 'approved', label: 'Approved' }, { id: 'rejected', label: 'Rejected' }]
@@ -130,7 +131,7 @@ function SequenceCard({ s, picked, onPick, tab, act }) {
         <div className="min-w-0 flex-1">
           <Label>{s.subject} · {s.topic}</Label>
           <p className="font-display text-xl font-bold">{s.title}</p>
-          <ol className="mt-2 list-decimal space-y-0.5 pl-5 text-sm">{s.steps.map((step) => <li key={step}>{step}</li>)}</ol>
+          <ol className="mt-2 list-decimal space-y-0.5 pl-5 text-sm">{s.steps.map((step) => <li key={step}><MathText text={step} /></li>)}</ol>
           <p className="mt-2 text-xs text-muted">From {s.submitter_name || 'unknown'}{s.submitter_note ? ` · "${s.submitter_note}"` : ''}{s.reviewed_by ? ` · ${s.status} by ${s.reviewed_by}` : ''}</p>
           <div className="mt-3 flex flex-wrap gap-2 text-sm font-bold">
             {s.status !== 'approved' && <button onClick={() => act({ action: 'set_status', ids: [s.id], status: 'approved' })} className="rounded-lg bg-accent px-3 py-1 text-on-accent">✓ Approve</button>}

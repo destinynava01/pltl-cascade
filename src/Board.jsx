@@ -6,6 +6,7 @@ import Results from './Results'
 import { SITE_NAME } from './config'
 import { Button, Label } from './ui'
 import { playCollapse, playComplete, playPlace, setSoundOn, soundOn } from './sounds'
+import MathText from './MathText'
 
 // The projector: every team's chain as it grows, card by card. A collapse shakes the team's column and shows who
 // played what. Teams that finish a sequence get the next one automatically.
@@ -110,7 +111,7 @@ function TeamColumn({ team, serverNow, busy, onSkip }) {
             <ol className="mt-3 space-y-1.5">
               {r.chain.map((step, i) => (
                 <li key={`${r.run_no}-${i}`} className="land flex gap-2 rounded-xl border border-accent/40 bg-accent-soft px-3 py-1.5 text-sm" style={{ marginLeft: `${Math.min(i, 6) * 6}px` }}>
-                  <span className="font-display font-bold text-accent">{i + 1}</span><span>{step}</span>
+                  <span className="font-display font-bold text-accent">{i + 1}</span><span><MathText text={step} /></span>
                 </li>
               ))}
               {Array.from({ length: r.total - r.chain.length }, (_, i) => (

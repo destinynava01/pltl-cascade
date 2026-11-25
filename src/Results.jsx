@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { casGame } from './api'
 import { Button, Label, Panel } from './ui'
+import MathText from './MathText'
 
 // After the game: teams ranked by points, every sequence each team played (with where the chain collapsed and
 // the right order), and the results download.
@@ -54,7 +55,7 @@ export default function Results({ session, onNewGame, onLobby }) {
                         <p className={`shrink-0 font-bold ${r.status === 'done' ? 'text-ok' : 'text-muted'}`}>{r.status === 'done' ? `+${r.points}` : 'unfinished'}</p>
                       </div>
                       <Label className="mt-2">The right order</Label>
-                      <ol className="mt-1 list-decimal space-y-0.5 pl-5">{r.steps.map((s) => <li key={s}>{s}</li>)}</ol>
+                      <ol className="mt-1 list-decimal space-y-0.5 pl-5">{r.steps.map((s) => <li key={s}><MathText text={s} /></li>)}</ol>
                       {r.slips.length > 0 && (
                         <>
                           <Label className="mt-2 !text-bad">Where the chain collapsed</Label>

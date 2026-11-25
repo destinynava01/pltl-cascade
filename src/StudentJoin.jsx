@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { casPlay, watchGame } from './api'
 import { playCollapse, playComplete, playPlace } from './sounds'
 import { Button, CenterCard, Label } from './ui'
+import MathText from './MathText'
 
 const STORAGE_KEY = 'cascadeStudent'
 const DEVICE_KEY = 'cascadeDevice'
@@ -149,7 +150,7 @@ function Room({ saved, onLeave }) {
           {run.chain.length > 0 && (
             <ol className="mt-3 space-y-1">
               {run.chain.map((step, i) => (
-                <li key={i} className="flex gap-2 rounded-xl bg-accent-soft px-3 py-1.5 text-sm"><span className="font-display font-bold text-accent">{i + 1}</span>{step}</li>
+                <li key={i} className="flex gap-2 rounded-xl bg-accent-soft px-3 py-1.5 text-sm"><span className="font-display font-bold text-accent">{i + 1}</span><MathText text={step} /></li>
               ))}
             </ol>
           )}
@@ -165,7 +166,7 @@ function Room({ saved, onLeave }) {
                 <li key={card.id}>
                   <button type="button" disabled={busy} onClick={() => play(card)}
                     className="w-full rounded-2xl border-2 border-gold bg-gold-soft p-4 text-left transition hover:brightness-110 active:scale-[0.99] disabled:opacity-50">
-                    <span className="block text-lg font-semibold">{card.text}</span>
+                    <span className="block text-lg font-semibold"><MathText text={card.text} /></span>
                     <span className="mt-1 block font-display text-xs font-bold uppercase tracking-widest text-gold">Tap to play this card</span>
                   </button>
                 </li>
