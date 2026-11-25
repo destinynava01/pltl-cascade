@@ -43,7 +43,7 @@ export default function Results({ session, onNewGame, onLobby }) {
                   <p className="font-display text-3xl font-extrabold text-accent">{t.score.points}</p>
                 </div>
                 <p className="mt-1 text-sm text-muted">{t.score.completed} sequence{t.score.completed === 1 ? '' : 's'} done · {t.score.resets} collapse{t.score.resets === 1 ? '' : 's'}</p>
-                <p className="mt-1 text-xs font-bold text-info">{open === t.index ? 'Hide sequences ▲' : 'See every sequence ▼'}</p>
+                <p className="mt-1 text-sm font-bold text-info">{open === t.index ? 'Hide sequences ▲' : 'See every sequence ▼'}</p>
               </button>
               {open === t.index && (
                 <ul className="mt-2 space-y-2">
@@ -72,7 +72,7 @@ export default function Results({ session, onNewGame, onLobby }) {
           <Button variant="gold" disabled={downloading} onClick={download}>{downloading ? 'Preparing…' : '⬇️ Results (.xlsx)'}</Button>
           <Button onClick={onNewGame}>New game</Button>
         </div>
-        <p className="mt-2 text-xs text-muted">Download before starting a new game. New game closes this one, and game data is cleared after 8 hours.</p>
+        <p className="mt-2 text-sm text-muted">Download before starting a new game. New game closes this one, and game data is cleared after 8 hours.</p>
         <button type="button" onClick={onLobby} className="mt-2 text-sm font-bold text-info">Back to the lobby</button>
         {error && <p className="mt-2 font-bold text-bad">{error}</p>}
       </Panel>

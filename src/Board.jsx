@@ -60,7 +60,7 @@ export default function Board({ session, onLobby, onNewGame }) {
       <HowToPlay site="cascade" gameId={session.gameId} name="Cascade" accent="#3ee0d0" slides={HOW_TO_SLIDES} />
       <header className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="font-display text-xs uppercase tracking-[0.3em] text-info">{SITE_NAME} · join code {session.joinCode}</p>
+          <p className="font-display text-sm uppercase tracking-[0.3em] text-info">{SITE_NAME} · join code {session.joinCode}</p>
           <h1 className="font-display text-3xl font-extrabold text-accent">🌊 {board.game.subject}</h1>
           <p className="text-sm text-muted">{board.game.topics.join(' · ')} · {board.game.sequences} sequences</p>
         </div>
@@ -92,11 +92,11 @@ function TeamColumn({ team, serverNow, busy, onSkip }) {
       <div className="flex items-center justify-between gap-2 px-5 py-3" style={{ borderBottom: `3px solid ${team.color}` }}>
         <div className="min-w-0">
           <h2 className="truncate font-display text-xl font-bold">{team.name}</h2>
-          <p className="truncate text-xs text-muted">{team.members.join(', ')}</p>
+          <p className="truncate text-sm text-muted">{team.members.join(', ')}</p>
         </div>
         <div className="text-right">
           <p className="font-display text-2xl font-extrabold text-accent">{team.score.points}</p>
-          <p className="text-xs text-muted">{team.score.completed} done · {team.score.resets} collapse{team.score.resets === 1 ? '' : 's'}</p>
+          <p className="text-sm text-muted">{team.score.completed} done · {team.score.resets} collapse{team.score.resets === 1 ? '' : 's'}</p>
         </div>
       </div>
 
@@ -119,7 +119,7 @@ function TeamColumn({ team, serverNow, busy, onSkip }) {
                 </li>
               ))}
             </ol>
-            <div className="mt-3 flex items-center justify-between text-xs">
+            <div className="mt-3 flex items-center justify-between text-sm">
               <span className="text-muted">{r.resets} collapse{r.resets === 1 ? '' : 's'} on this one</span>
               <button type="button" disabled={busy} onClick={onSkip} className="font-bold text-info hover:underline">Stuck? Skip it →</button>
             </div>

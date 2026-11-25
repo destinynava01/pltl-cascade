@@ -18,7 +18,7 @@ export function SignInCard({ children }) {
           <header className="px-6 pt-6 text-center">
             <p className="font-mono text-xs uppercase tracking-[0.4em] text-bad">● Reviewers only</p>
             <h1 className="mt-2 font-display text-2xl uppercase tracking-wider text-accent glow-accent">Sequence Review</h1>
-            <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.3em] text-muted">Cascade</p>
+            <p className="mt-1 font-mono text-[0.8rem] uppercase tracking-[0.3em] text-muted">Cascade</p>
           </header>
           {children}
         </div>
