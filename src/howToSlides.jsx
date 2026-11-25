@@ -64,3 +64,22 @@ export const SLIDES = [
     ),
   },
 ]
+
+// The guide's own look (the waterfall: a deep-water card with an aqua glow, Lexend lettering). HowToPlay.jsx reads this; anything left out uses its plain dark look.
+export const SKIN = {
+  backdrop: 'bg-[#020b14]/85',
+  panel: 'rounded-3xl border border-line bg-card text-ink shadow-2xl',
+  glow: true,
+  label: 'font-display text-sm font-bold uppercase tracking-[0.25em] text-accent',
+  skip: 'rounded-full px-3 py-1 text-sm font-bold text-muted hover:bg-hover hover:text-ink',
+  art: 'water-bg rounded-2xl border border-line',
+  step: 'text-sm font-bold uppercase tracking-widest text-info',
+  title: 'font-display text-3xl font-extrabold leading-tight text-ink sm:text-4xl',
+  text: 'text-lg leading-relaxed text-ink/90',
+  footer: 'border-t border-line',
+  check: 'text-sm text-muted',
+  back: 'rounded-xl px-4 py-2 font-bold text-ink hover:bg-hover',
+  next: 'rounded-xl bg-accent px-5 py-2 font-display font-extrabold text-on-accent shadow-[0_0_20px_rgb(62_224_208/0.4)] hover:brightness-110',
+  dotOff: '#23577a',
+  launcher: 'rounded-full border border-accent/50 bg-card px-4 py-2 font-display text-sm font-bold text-accent shadow-lg hover:bg-hover',
+}
