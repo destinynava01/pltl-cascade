@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+/*
+  The look: a waterfall at dusk. Deep blue water, aqua spray, a warm gold glow on the cards, and coral when the
+  chain collapses. Every color the screens use is one of these tokens.
+*/
+@theme {
+  --color-board: #061a2b;
+  --color-card: #0c2a40;
+  --color-panel: #123651;
+  --color-hover: #18405f;
+  --color-line: #23577a;
+  --color-ink: #eaf6ff;
+  --color-muted: #93b4c9;
+  --color-accent: #3ee0d0;      /* aqua: titles, main buttons, the chain */
+  --color-accent-soft: #0d3d44;
+  --color-on-accent: #032326;
+  --color-info: #7cc7ff;
+  --color-info-soft: #12395a;
+  --color-ok: #5cf2a0;          /* a sequence finished */
+  --color-ok-soft: #0f3a2c;
+  --color-bad: #ff7a6b;         /* the chain collapsed */
+  --color-bad-soft: #3d1a1a;
+  --color-gold: #ffd27a;        /* your cards */
+  --color-gold-soft: #3a2f14;
+
+  --font-display: "Lexend", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+}
+
+body { font-family: var(--font-body); background: var(--color-board); color: var(--color-ink); }
+
+/* Falling water: soft vertical streaks drifting down, with a glow at the top */
+.water-bg {
+  background-color: var(--color-board);
+  background-image:
+    radial-gradient(ellipse at 50% -10%, rgb(62 224 208 / 0.18), transparent 55%),
+    radial-gradient(ellipse at 80% 110%, rgb(124 199 255 / 0.12), transparent 50%),
+    repeating-linear-gradient(90deg, rgb(255 255 255 / 0.02) 0 2px, transparent 2px 38px);
+  background-size: auto, auto, 38px 100%;
+  animation: falling 6s linear infinite;
+}
+@keyframes falling { from { background-position: 0 0, 0 0, 0 0; } to { background-position: 0 0, 0 0, 0 400px; } }
+
+.soft-shadow { box-shadow: 0 12px 30px rgb(0 0 0 / 0.35); }
+
+/* A card in the chain, landing with a little splash */
+@keyframes land { 0% { transform: translateY(-18px); opacity: 0; } 70% { transform: translateY(3px); opacity: 1; } 100% { transform: translateY(0); } }
+.land { animation: land 0.4s ease-out both; }
+
+/* The chain collapsing */
+@keyframes collapse { 0% { transform: translate(0); } 20% { transform: translate(-6px, 2px) rotate(-1deg); } 40% { transform: translate(6px, -2px) rotate(1deg); } 60% { transform: translate(-4px, 1px); } 80% { transform: translate(3px, 0); } 100% { transform: translate(0); } }
+.collapse { animation: collapse 0.5s ease-in-out; }
+
+@keyframes ripple { 0% { box-shadow: 0 0 0 0 rgb(62 224 208 / 0.5); } 100% { box-shadow: 0 0 0 16px rgb(62 224 208 / 0); } }
+.ripple { animation: ripple 1.4s ease-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .water-bg, .land, .collapse, .ripple { animation: none; }
+}
