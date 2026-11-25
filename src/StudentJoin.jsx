@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { casPlay, watchGame } from './api'
+import { playCollapse, playComplete, playPlace } from './sounds'
 import { Button, CenterCard, Label } from './ui'
 
 const STORAGE_KEY = 'cascadeStudent'
@@ -71,6 +72,8 @@ function Room({ saved, onLeave }) {
   const [flash, setFlash] = useState(null) // { kind: 'right' | 'wrong' | 'done' | 'info', text, at }
   const lastCollapse = useRef(null)
   const stamp = useRef(0) // a new number for each message, so the animation replays
+  const lastChain = useRef(null) // `${run}:${cards played}` last time, to hear the chain grow or finish
+  const ownCollapse = useRef(false) // this phone caused the collapse (it already showed what was next)
   const say = (kind, text) => { stamp.current += 1; setFlash({ kind, text, at: stamp.current }) }
 
   const check = useCallback(() => casPlay({ action: 'status', player_id: saved.playerId, device_id: deviceId() })
@@ -78,8 +81,21 @@ function Room({ saved, onLeave }) {
       if (d.ended) return onLeave('That game has ended. Join another with a new code.')
       // Someone on the team collapsed the chain: tell everyone
       const c = d.run?.last_collapse
-      if (c && lastCollapse.current && c.at !== lastCollapse.current) say('wrong', `💥 ${c.by} played a card out of order. New cards, start over!`)
+      const collapsed = c && lastCollapse.current && c.at !== lastCollapse.current
+      if (collapsed) {
+        playCollapse()
+        if (!ownCollapse.current) say('wrong', `💥 ${c.by} played a card out of order. New cards, start over!`)
+      }
+      ownCollapse.current = false
       lastCollapse.current = c?.at ?? lastCollapse.current ?? 'none'
+      // A card played (by anyone on the team) or a sequence finished
+      const key = d.run ? `${d.run.run_no}:${d.run.chain.length}` : null
+      if (!collapsed && key && lastChain.current && key !== lastChain.current) {
+        const [run] = lastChain.current.split(':').map(Number)
+        if (d.run.run_no > run) playComplete()
+        else if (d.run.chain.length > Number(lastChain.current.split(':')[1])) playPlace()
+      }
+      lastChain.current = key
       setView(d)
       setError('')
     })
@@ -100,7 +116,10 @@ function Room({ saved, onLeave }) {
       const r = await casPlay({ action: 'play', player_id: saved.playerId, device_id: deviceId(), card: card.id })
       if (r.finished) say('done', `🎉 Sequence complete! +${r.points}. Here comes the next one.`)
       else if (r.correct) say('right', '✅ Nice, that was next!')
-      else say('wrong', `💥 Not yet! The next step was: "${r.expected_text}". New cards, start over.`)
+      else {
+        ownCollapse.current = true // the status check plays the crash; this message says what was next
+        say('wrong', `💥 Not yet! The next step was: "${r.expected_text}". New cards, start over.`)
+      }
       await check()
     } catch (e) {
       setError(e.message)

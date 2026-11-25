@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import HowToPlay from './HowToPlay'
 import { SLIDES as HOW_TO_SLIDES } from './howToSlides'
 import { casGame, watchGame } from './api'
 import Results from './Results'
 import { SITE_NAME } from './config'
 import { Button, Label } from './ui'
+import { playCollapse, playComplete, playPlace, setSoundOn, soundOn } from './sounds'
 
 // The projector: every team's chain as it grows, card by card. A collapse shakes the team's column and shows who
 // played what. Teams that finish a sequence get the next one automatically.
@@ -14,7 +15,31 @@ export default function Board({ session, onLobby, onNewGame }) {
   const [busy, setBusy] = useState(false)
 
   const call = useCallback((payload) => casGame({ ...payload, game_id: session.gameId, host_token: session.hostToken }), [session])
-  const load = useCallback(() => call({ action: 'board' }).then((d) => { setBoard(d); setError('') }).catch((e) => setError(e.message)), [call])
+  const [sound, setSound] = useState(soundOn)
+  const last = useRef(null) // each team's chain the last time we looked, to hear what changed
+
+  // One sound per update, the biggest news first: a collapse, then a finished sequence, then a card played
+  const listen = (d) => {
+    const now = new Map(d.teams.map((t) => [t.index, { collapse: t.run?.last_collapse?.at ?? null, run: t.run?.run_no ?? 0, chain: t.run?.chain.length ?? 0 }]))
+    if (last.current) {
+      let collapse = false
+      let complete = false
+      let place = false
+      for (const [i, n] of now) {
+        const before = last.current.get(i)
+        if (!before) continue
+        if (n.collapse && n.collapse !== before.collapse) collapse = true
+        else if (n.run > before.run) complete = true
+        else if (n.run === before.run && n.chain > before.chain) place = true
+      }
+      if (collapse) playCollapse()
+      else if (complete) playComplete()
+      else if (place) playPlace()
+    }
+    last.current = now
+  }
+
+  const load = useCallback(() => call({ action: 'board' }).then((d) => { listen(d); setBoard(d); setError('') }).catch((e) => setError(e.message)), [call])
   useEffect(() => {
     load()
     return watchGame(session.gameId, ['state', 'lobby'], load, 5000)
@@ -41,6 +66,10 @@ export default function Board({ session, onLobby, onNewGame }) {
         </div>
         <div className="flex flex-wrap gap-2">
           {board.waiting > 0 && <Button variant="gold" className="!px-4 !py-2 text-sm" onClick={onLobby}>{board.waiting} waiting to join</Button>}
+          <Button variant="outline" className="!px-4 !py-2 text-sm" aria-label={sound ? 'Mute sounds' : 'Turn sounds on'} title={sound ? 'Mute sounds' : 'Turn sounds on'}
+            onClick={() => { setSoundOn(!sound); setSound(!sound); if (!sound) playPlace() }}>
+            {sound ? '🔊' : '🔇'}
+          </Button>
           <Button variant="outline" className="!px-4 !py-2 text-sm" onClick={onLobby}>Lobby</Button>
           <Button variant="danger" className="!px-4 !py-2 text-sm" disabled={busy} onClick={() => act({ action: 'end_game' }, 'End the game and see the results?')}>End game</Button>
         </div>
