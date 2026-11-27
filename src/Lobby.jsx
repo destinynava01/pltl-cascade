@@ -8,8 +8,8 @@ import { Button, Label, Panel } from './ui'
 const choice = (on) =>
   `rounded-2xl border px-3 py-2 text-left text-sm font-semibold transition ${on ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-panel hover:bg-hover'}`
 
-// Leader lobby: create the game -> teams -> finalize -> course, professor and chapters (or, for subjects with no
-// chapters yet, a subject and topics) -> start.
+// Leader lobby: create the game -> teams -> finalize -> subject -> course -> professor -> chapters (like Jeopardy). Courses
+// with no chapters in the bank yet offer their topics instead of a professor and chapters.
 // Students join from their phones; the leader puts them on teams. A team of one works.
 export default function Lobby({ onStart, onOpenBoard, hasGame, resume, onCloseGame }) {
   const [session, setSession] = useState(resume?.session ?? null)
@@ -19,7 +19,8 @@ export default function Lobby({ onStart, onOpenBoard, hasGame, resume, onCloseGa
   const [course, setCourse] = useState('')
   const [professor, setProfessor] = useState('')
   const [topicIds, setTopicIds] = useState([])
-  const [subject, setSubject] = useState('')
+  const [group, setGroup] = useState('') // the subject (Biology, Math, ...)
+  const [subject, setSubject] = useState('') // a course with no chapters yet (its typed name)
   const [topics, setTopics] = useState([])
   const [players, setPlayers] = useState([])
   const [busy, setBusy] = useState(false)
@@ -57,6 +58,16 @@ export default function Lobby({ onStart, onOpenBoard, hasGame, resume, onCloseGa
     setCourse(c.course_name); setSubject(''); setTopics([])
     if (c.professors.length === 1) pickProfessor(c.professors[0])
     else { setProfessor(''); setTopicIds([]) }
+  }
+  // Subject -> its courses (filed ones, and ones with no chapters yet)
+  const groups = catalog ? [...new Set([...catalog.courses.map((c) => c.subject_name), ...catalog.subjects.map((s) => s.subject_name)])].sort() : []
+  const groupCourses = catalog?.courses.filter((c) => c.subject_name === group) ?? []
+  const groupLoose = catalog?.subjects.filter((s) => s.subject_name === group) ?? []
+  const pickGroup = (g) => {
+    setGroup(g); setCourse(''); setProfessor(''); setTopicIds([]); setSubject(''); setTopics([])
+    const cs = catalog.courses.filter((c) => c.subject_name === g), ls = catalog.subjects.filter((s) => s.subject_name === g)
+    if (cs.length === 1 && ls.length === 0) pickCourse(cs[0])
+    if (cs.length === 0 && ls.length === 1) pickSubject(ls[0])
   }
   const pickSubject = (s) => { setSubject(s.subject); setTopics(s.topics.map((t) => t.topic)); setCourse(''); setProfessor(''); setTopicIds([]) }
 
@@ -145,14 +156,22 @@ export default function Lobby({ onStart, onOpenBoard, hasGame, resume, onCloseGa
               {nothing && <p className="text-muted">No approved sequences yet. Add some on the Submit page.</p>}
               {catalog && !nothing && (
                 <>
-                  <Label>1. Course</Label>
+                  <Label>1. Subject</Label>
                   <div className="mt-2 grid grid-cols-2 gap-2">
-                    {catalog.courses.map((c) => (
+                    {groups.map((g) => <button key={g} type="button" className={choice(group === g)} onClick={() => pickGroup(g)}>{g}</button>)}
+                  </div>
+                </>
+              )}
+              {group && (
+                <>
+                  <Label className="mt-4">2. Course</Label>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    {groupCourses.map((c) => (
                       <button key={c.course_name} type="button" className={choice(course === c.course_name)} onClick={() => pickCourse(c)}>{c.course_name}</button>
                     ))}
-                    {catalog.subjects.map((s) => (
+                    {groupLoose.map((s) => (
                       <button key={s.subject} type="button" className={choice(subject === s.subject)} onClick={() => pickSubject(s)}>
-                        {s.subject}{catalog.courses.some((c) => c.course_name === s.subject) && <span className="block text-xs font-normal text-muted">not filed by chapter yet</span>}
+                        {s.subject}<span className="block text-xs font-normal text-muted">{groupCourses.some((c) => c.course_name === s.subject) ? 'not filed by chapter yet' : 'by topic (no chapters yet)'}</span>
                       </button>
                     ))}
                   </div>
@@ -160,7 +179,7 @@ export default function Lobby({ onStart, onOpenBoard, hasGame, resume, onCloseGa
               )}
               {course && professors.length > 1 && (
                 <>
-                  <Label className="mt-4">2. Professor</Label>
+                  <Label className="mt-4">3. Professor</Label>
                   <div className="mt-2 grid grid-cols-2 gap-2">
                     {professors.map((p) => <button key={p.professor_name} type="button" className={choice(professor === p.professor_name)} onClick={() => pickProfessor(p)}>{p.professor_name}</button>)}
                   </div>
@@ -169,7 +188,7 @@ export default function Lobby({ onStart, onOpenBoard, hasGame, resume, onCloseGa
               {((course && professor) || subject) && (
                 <>
                   <div className="mt-4 flex items-baseline justify-between">
-                    <Label>{course ? (professors.length > 1 ? '3. Chapters' : '2. Chapters') : '2. Topics'}</Label>
+                    <Label>{course ? (professors.length > 1 ? '4. Chapters' : '3. Chapters') : '3. Topics'}</Label>
                     <span className="flex gap-3 text-xs font-bold">
                       <button type="button" className="text-info" onClick={() => (course ? setTopicIds(chapters.map((ch) => ch.id)) : setTopics(subjectTopics.map((t) => t.topic)))}>All</button>
                       <button type="button" className="text-info" onClick={() => (course ? setTopicIds([]) : setTopics([]))}>None</button>
