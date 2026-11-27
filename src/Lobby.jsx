@@ -60,12 +60,14 @@ export default function Lobby({ onStart, onOpenBoard, hasGame, resume, onCloseGa
     else { setProfessor(''); setTopicIds([]) }
   }
   // Subject -> its courses (filed ones, and ones with no chapters yet)
-  const groups = catalog ? [...new Set([...catalog.courses.map((c) => c.subject_name), ...catalog.subjects.map((s) => s.subject_name)])].sort() : []
-  const groupCourses = catalog?.courses.filter((c) => c.subject_name === group) ?? []
-  const groupLoose = catalog?.subjects.filter((s) => s.subject_name === group) ?? []
+  // (an older server without subject names puts everything under "All courses")
+  const sub = (x) => x.subject_name || 'All courses'
+  const groups = catalog ? [...new Set([...catalog.courses.map(sub), ...catalog.subjects.map(sub)])].sort() : []
+  const groupCourses = catalog?.courses.filter((c) => sub(c) === group) ?? []
+  const groupLoose = catalog?.subjects.filter((s) => sub(s) === group) ?? []
   const pickGroup = (g) => {
     setGroup(g); setCourse(''); setProfessor(''); setTopicIds([]); setSubject(''); setTopics([])
-    const cs = catalog.courses.filter((c) => c.subject_name === g), ls = catalog.subjects.filter((s) => s.subject_name === g)
+    const cs = catalog.courses.filter((c) => sub(c) === g), ls = catalog.subjects.filter((s) => sub(s) === g)
     if (cs.length === 1 && ls.length === 0) pickCourse(cs[0])
     if (cs.length === 0 && ls.length === 1) pickSubject(ls[0])
   }
