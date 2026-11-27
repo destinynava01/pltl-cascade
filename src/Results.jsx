@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react'
 import { casGame } from './api'
 import { Button, Label, Panel } from './ui'
 import MathText from './MathText'
+import ReportProblem from './ReportProblem'
 
 // After the game: teams ranked by points, every sequence each team played (with where the chain collapsed and
 // the right order), and the results download.
 export default function Results({ session, onNewGame, onLobby }) {
+  const reportCall = (payload) => casGame({ ...payload, game_id: session.gameId, host_token: session.hostToken })
   const [report, setReport] = useState(null)
   const [error, setError] = useState('')
   const [open, setOpen] = useState(null)
@@ -62,6 +64,7 @@ export default function Results({ session, onNewGame, onLobby }) {
                           <ul className="mt-1 space-y-0.5 text-bad">{r.slips.map((s, n) => <li key={n}>💥 {s.by} played &ldquo;{s.played}&rdquo; when &ldquo;{s.expected}&rdquo; was next</li>)}</ul>
                         </>
                       )}
+                      <ReportProblem call={reportCall} location={`${t.name} · Sequence: ${r.title} (${r.topic})`} answer={r.steps.map((s, n) => `${n + 1}. ${s}`).join('\n')} className="mt-2" />
                     </li>
                   ))}
                 </ul>
