@@ -25,6 +25,7 @@ function Reviewer() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [picked, setPicked] = useState([])
+  const [subject, setSubject] = useState('') // '' = every subject
 
   const load = useCallback(() => casReview({ action: 'list', status: tab }).then((d) => { setData(d); setPicked([]); setError('') }).catch((e) => setError(e.message)), [tab])
   useEffect(() => { casReview({ action: 'whoami' }).then(setMe).catch((e) => setError(e.message)) }, [])
@@ -55,7 +56,10 @@ function Reviewer() {
     )
   }
 
-  const list = data?.sequences ?? []
+  const all = data?.sequences ?? []
+  // The subjects in this tab, most sequences first, and the list narrowed to the picked one
+  const subjects = [...all.reduce((m, s) => m.set(s.subject || 'No subject', (m.get(s.subject || 'No subject') ?? 0) + 1), new Map())].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+  const list = subject ? all.filter((s) => (s.subject || 'No subject') === subject) : all
   return (
     <main className="water-bg min-h-dvh px-4 py-8 text-ink">
       <div className="mx-auto max-w-4xl">
@@ -82,10 +86,21 @@ function Reviewer() {
             </>
           )}
         </nav>
+        {subjects.length > 1 && (
+          <div className="mt-3 flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter by subject">
+            <span className="mr-1 text-xs font-bold uppercase tracking-widest text-muted">Subject</span>
+            {[['', all.length], ...subjects].map(([name, n]) => (
+              <button key={name || 'all'} type="button" aria-pressed={subject === name} onClick={() => { setSubject(name); setPicked([]) }}
+                className={`rounded-full border px-3 py-1 text-xs font-bold ${subject === name ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-panel hover:bg-hover'}`}>
+                {name || 'All'} <span className="opacity-70">{n}</span>
+              </button>
+            ))}
+          </div>
+        )}
         {message && <p className="mt-3 font-bold text-ok">{message}</p>}
         {error && <p className="mt-3 font-bold text-bad">{error}</p>}
         {!data && <p className="mt-6 text-muted">Loading…</p>}
-        {data && list.length === 0 && <p className="mt-6 text-muted">Nothing here.</p>}
+        {data && list.length === 0 && <p className="mt-6 text-muted">{subject && all.length ? `Nothing in ${subject} here.` : 'Nothing here.'}</p>}
         <ul className="mt-4 space-y-3">
           {list.map((s) => <SequenceCard key={s.id} s={s} courses={data.courses ?? []} picked={picked.includes(s.id)} onPick={() => setPicked((x) => (x.includes(s.id) ? x.filter((y) => y !== s.id) : [...x, s.id]))} tab={tab} act={act} />)}
         </ul>
