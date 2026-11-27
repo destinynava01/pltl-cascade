@@ -7,6 +7,7 @@ import { SITE_NAME } from './config'
 import { Button, Label } from './ui'
 import { playCollapse, playComplete, playPlace, setSoundOn, soundOn } from './sounds'
 import MathText from './MathText'
+import Peek from './Peek'
 
 // The projector: every team's chain as it grows, card by card. A collapse shakes the team's column and shows who
 // played what. Teams that finish a sequence get the next one automatically.
@@ -14,6 +15,7 @@ export default function Board({ session, onLobby, onNewGame }) {
   const [board, setBoard] = useState(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [peek, setPeek] = useState(null) // the team the leader is peeking at
 
   const call = useCallback((payload) => casGame({ ...payload, game_id: session.gameId, host_token: session.hostToken }), [session])
   const [sound, setSound] = useState(soundOn)
@@ -78,13 +80,14 @@ export default function Board({ session, onLobby, onNewGame }) {
       {error && <p className="mx-auto mt-3 max-w-7xl font-bold text-bad">{error}</p>}
 
       <section className="mx-auto mt-6 grid max-w-7xl gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {board.teams.map((t) => <TeamColumn key={t.index} team={t} serverNow={Date.parse(board.server_now)} busy={busy} onSkip={() => act({ action: 'skip_sequence', team_index: t.index }, `Skip ${t.name}'s current sequence? It scores 0 and they get the next one.`)} />)}
+        {board.teams.map((t) => <TeamColumn key={t.index} team={t} serverNow={Date.parse(board.server_now)} busy={busy} onPeek={() => setPeek({ index: t.index, name: t.name })} onSkip={() => act({ action: 'skip_sequence', team_index: t.index }, `Skip ${t.name}'s current sequence? It scores 0 and they get the next one.`)} />)}
       </section>
+      {peek && <Peek call={call} team={peek} stamp={board} onClose={() => setPeek(null)} />}
     </main>
   )
 }
 
-function TeamColumn({ team, serverNow, busy, onSkip }) {
+function TeamColumn({ team, serverNow, busy, onSkip, onPeek }) {
   const r = team.run
   // Shake the column right after a collapse (by the server's clock, from the last update)
   const collapsedRecently = r?.last_collapse && serverNow - Date.parse(r.last_collapse.at) < 8000
@@ -122,7 +125,10 @@ function TeamColumn({ team, serverNow, busy, onSkip }) {
             </ol>
             <div className="mt-3 flex items-center justify-between text-sm">
               <span className="text-muted">{r.resets} collapse{r.resets === 1 ? '' : 's'} on this one</span>
-              <button type="button" disabled={busy} onClick={onSkip} className="font-bold text-info hover:underline">Stuck? Skip it →</button>
+              <span className="flex items-center gap-3">
+                <button type="button" onClick={onPeek} className="rounded-xl border border-line bg-panel px-2 py-0.5 font-bold text-accent hover:bg-hover" aria-label={`Peek at ${team.name}`}>👀 Peek</button>
+                <button type="button" disabled={busy} onClick={onSkip} className="font-bold text-info hover:underline">Stuck? Skip it →</button>
+              </span>
             </div>
             {r.last_collapse && (
               <p className="mt-2 rounded-xl bg-bad-soft px-3 py-2 text-sm text-bad">💥 Collapsed: {r.last_collapse.by} played step {r.last_collapse.step + 1} when step {r.last_collapse.expected + 1} was next.</p>
