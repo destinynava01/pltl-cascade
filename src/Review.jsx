@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { casReview } from './api'
+import { callFunction, casReview } from './api'
+import GameReports from './GameReports'
 import { SignIn, SignInCard } from './SignIn'
 import { supabase } from './supabase'
 import { useSession } from './useSession'
@@ -9,7 +10,9 @@ import ChapterPicker from './ChapterPicker'
 import { chapterLabels } from './chapters'
 
 const field = 'w-full rounded-xl border border-line bg-panel px-3 py-2 text-sm text-ink outline-none focus:border-accent'
-const TABS = [{ id: 'pending', label: 'Waiting' }, { id: 'approved', label: 'Approved' }, { id: 'rejected', label: 'Rejected' }]
+const TABS = [{ id: 'pending', label: 'Waiting' }, { id: 'approved', label: 'Approved' }, { id: 'rejected', label: 'Rejected' }, { id: 'reports', label: '🚩 Problem reports' }]
+// Problem reports go through the shared review function (the same reviewer sign-in)
+const review = (payload, fallback) => callFunction('review', { ...payload, game: 'jeopardy' }, fallback)
 
 // Reviewers: approve, edit or reject submitted sequences (same sign-in as the other game sites)
 export default function Review() {
@@ -27,7 +30,7 @@ function Reviewer() {
   const [picked, setPicked] = useState([])
   const [subject, setSubject] = useState('') // '' = every subject
 
-  const load = useCallback(() => casReview({ action: 'list', status: tab }).then((d) => { setData(d); setPicked([]); setError('') }).catch((e) => setError(e.message)), [tab])
+  const load = useCallback(() => (tab === 'reports' ? Promise.resolve() : casReview({ action: 'list', status: tab })).then((d) => { setData(d); setPicked([]); setError('') }).catch((e) => setError(e.message)), [tab])
   useEffect(() => { casReview({ action: 'whoami' }).then(setMe).catch((e) => setError(e.message)) }, [])
   useEffect(() => { load() }, [load])
 
@@ -76,7 +79,7 @@ function Reviewer() {
           {TABS.map((t) => (
             <button key={t.id} onClick={() => { setTab(t.id); setMessage('') }}
               className={`rounded-xl border px-4 py-2 text-sm font-bold ${tab === t.id ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-panel hover:bg-hover'}`}>
-              {t.label} <span className="ml-1 text-xs opacity-80">{data?.counts?.[t.id]}</span>
+              {t.label} <span className="ml-1 text-xs opacity-80">{t.id === 'reports' ? '' : data?.counts?.[t.id]}</span>
             </button>
           ))}
           {tab === 'pending' && list.length > 0 && (
@@ -86,24 +89,28 @@ function Reviewer() {
             </>
           )}
         </nav>
-        {subjects.length > 1 && (
-          <div className="mt-3 flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter by subject">
-            <span className="mr-1 text-xs font-bold uppercase tracking-widest text-muted">Subject</span>
-            {[['', all.length], ...subjects].map(([name, n]) => (
-              <button key={name || 'all'} type="button" aria-pressed={subject === name} onClick={() => { setSubject(name); setPicked([]) }}
-                className={`rounded-full border px-3 py-1 text-xs font-bold ${subject === name ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-panel hover:bg-hover'}`}>
-                {name || 'All'} <span className="opacity-70">{n}</span>
-              </button>
-            ))}
-          </div>
+        {tab === 'reports' ? <div className="mt-4"><GameReports call={review} game="cascade" /></div> : (
+          <>
+            {subjects.length > 1 && (
+              <div className="mt-3 flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter by subject">
+                <span className="mr-1 text-xs font-bold uppercase tracking-widest text-muted">Subject</span>
+                {[['', all.length], ...subjects].map(([name, n]) => (
+                  <button key={name || 'all'} type="button" aria-pressed={subject === name} onClick={() => { setSubject(name); setPicked([]) }}
+                    className={`rounded-full border px-3 py-1 text-xs font-bold ${subject === name ? 'border-accent bg-accent-soft text-accent' : 'border-line bg-panel hover:bg-hover'}`}>
+                    {name || 'All'} <span className="opacity-70">{n}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {message && <p className="mt-3 font-bold text-ok">{message}</p>}
+            {error && <p className="mt-3 font-bold text-bad">{error}</p>}
+            {!data && <p className="mt-6 text-muted">Loading…</p>}
+            {data && list.length === 0 && <p className="mt-6 text-muted">{subject && all.length ? `Nothing in ${subject} here.` : 'Nothing here.'}</p>}
+            <ul className="mt-4 space-y-3">
+              {list.map((s) => <SequenceCard key={s.id} s={s} courses={data.courses ?? []} picked={picked.includes(s.id)} onPick={() => setPicked((x) => (x.includes(s.id) ? x.filter((y) => y !== s.id) : [...x, s.id]))} tab={tab} act={act} />)}
+            </ul>
+          </>
         )}
-        {message && <p className="mt-3 font-bold text-ok">{message}</p>}
-        {error && <p className="mt-3 font-bold text-bad">{error}</p>}
-        {!data && <p className="mt-6 text-muted">Loading…</p>}
-        {data && list.length === 0 && <p className="mt-6 text-muted">{subject && all.length ? `Nothing in ${subject} here.` : 'Nothing here.'}</p>}
-        <ul className="mt-4 space-y-3">
-          {list.map((s) => <SequenceCard key={s.id} s={s} courses={data.courses ?? []} picked={picked.includes(s.id)} onPick={() => setPicked((x) => (x.includes(s.id) ? x.filter((y) => y !== s.id) : [...x, s.id]))} tab={tab} act={act} />)}
-        </ul>
       </div>
     </main>
   )
